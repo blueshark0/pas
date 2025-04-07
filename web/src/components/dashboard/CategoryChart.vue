@@ -1,202 +1,240 @@
-<!-- 收支类别分析图表组件 -->
 <template>
-  <div class="category-chart bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-lg font-bold text-gray-800 mb-4">支出分类分析</h3>
-    
-    <div v-if="loading" class="flex justify-center items-center py-10">
-      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
-    </div>
-    
-    <div v-else-if="noData" class="flex justify-center items-center py-10 text-gray-500">
-      暂无数据
-    </div>
-    
-    <div v-else class="relative" style="height: 250px;">
-      <canvas ref="chartRef"></canvas>
-    </div>
-    
-    <div class="mt-4 flex justify-between text-sm">
-      <div class="text-gray-500">
-        <span>统计周期: </span>
-        <select v-model="period" @change="fetchData" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-md px-2 py-1">
+  <div class="bg-white p-6 rounded-lg shadow-md h-full">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-semibold text-gray-800">支出分类</h2>
+      <div class="flex items-center">
+        <select 
+          v-model="period" 
+          class="text-sm border rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
           <option value="month">本月</option>
-          <option value="quarter">本季度</option>
-          <option value="year">本年</option>
+          <option value="year">今年</option>
         </select>
       </div>
-      <div class="text-gray-500">
-        <span>类型: </span>
-        <select v-model="type" @change="fetchData" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-md px-2 py-1">
-          <option value="expense">支出</option>
-          <option value="income">收入</option>
-        </select>
+    </div>
+    
+    <div v-if="loading" class="py-10 text-center text-gray-500">
+      <p>加载中...</p>
+    </div>
+    
+    <div v-else-if="categories.length === 0" class="py-10 text-center text-gray-500">
+      <p>暂无数据</p>
+    </div>
+    
+    <div v-else class="space-y-4">
+      <!-- 饼图 -->
+      <div class="w-full h-60" ref="chartContainer"></div>
+      
+      <!-- 分类列表 -->
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        <div 
+          v-for="(item, index) in categories" 
+          :key="index" 
+          class="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+        >
+          <div class="flex items-center">
+            <div 
+              class="w-3 h-3 rounded-full mr-2" 
+              :style="`background-color: ${item.category_color || getColorByIndex(index)}`"
+            ></div>
+            <span class="text-sm text-gray-700">{{ item.category_name }}</span>
+          </div>
+          <div class="flex flex-col items-end">
+            <span class="text-sm font-medium text-gray-800">¥{{ formatNumber(item.total) }}</span>
+            <span class="text-xs text-gray-500">{{ formatPercentage(item.percentage) }}%</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import axios from 'axios';
-import { Chart, registerables } from 'chart.js';
+import * as echarts from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+import { LabelLayout, UniversalTransition } from 'echarts/features';
+import { CanvasRenderer } from 'echarts/renderers';
 
-// 注册 Chart.js 组件
-Chart.register(...registerables);
+// 注册 ECharts 组件
+echarts.use([
+  PieChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  LabelLayout,
+  UniversalTransition,
+  CanvasRenderer
+]);
 
 interface CategoryData {
-  category: string;
-  amount: number;
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  category_icon: string;
+  total: number;
+  percentage: number;
 }
 
-// 状态
+const chartContainer = ref<HTMLElement | null>(null);
+const chart = ref<echarts.ECharts | null>(null);
 const loading = ref<boolean>(false);
-const chartRef = ref<HTMLCanvasElement | null>(null);
-const chart = ref<Chart | null>(null);
 const period = ref<string>('month');
-const type = ref<string>('expense');
-const chartData = ref<CategoryData[]>([]);
-const noData = ref<boolean>(false);
+const categories = ref<CategoryData[]>([]);
+const totalAmount = ref<number>(0);
 
-// 获取图表数据
-const fetchData = async (): Promise<void> => {
+// 预定义颜色列表
+const colors = [
+  '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+  '#FF9F40', '#8AC054', '#EA7CCC', '#5D9CEC', '#F06292'
+];
+
+// 获取颜色
+const getColorByIndex = (index: number): string => {
+  return colors[index % colors.length];
+};
+
+// 格式化数字
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// 格式化百分比
+const formatPercentage = (percentage: number): string => {
+  return percentage.toFixed(1);
+};
+
+// 加载分类统计数据
+const loadCategoryStats = async () => {
   loading.value = true;
-  noData.value = false;
   
   try {
-    // 计算日期范围
-    const dates = getDateRangeByPeriod(period.value);
+    // 根据选择的周期计算起止日期
+    let startDate, endDate;
+    const now = new Date();
     
-    const response = await axios.get('/api/income-expense/category-statistics', {
+    if (period.value === 'month') {
+      // 本月
+      startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else {
+      // 今年
+      startDate = `${now.getFullYear()}-01-01`;
+      endDate = `${now.getFullYear()}-12-31`;
+    }
+    
+    const response = await axios.get('/api/income-expense/category-stats', {
       params: {
-        start_date: dates.start,
-        end_date: dates.end,
-        type: type.value
+        start_date: startDate,
+        end_date: endDate,
+        type: 'expense' // 只统计支出
       }
     });
     
-    chartData.value = response.data || [];
-    noData.value = chartData.value.length === 0;
+    // 按金额降序排序
+    const sortedData = response.data.sort((a: CategoryData, b: CategoryData) => b.total - a.total);
     
-    if (!noData.value) {
-      renderChart();
-    }
+    // 计算总金额
+    totalAmount.value = sortedData.reduce((sum: number, item: CategoryData) => sum + item.total, 0);
+    
+    // 计算百分比
+    categories.value = sortedData.map((item: CategoryData) => ({
+      ...item,
+      percentage: totalAmount.value > 0 ? (item.total / totalAmount.value) * 100 : 0
+    }));
+    
+    // 更新图表
+    nextTick(() => {
+      updateChart();
+    });
   } catch (error) {
-    console.error('获取分类统计数据失败:', error);
-    noData.value = true;
+    console.error('加载分类统计数据失败:', error);
   } finally {
     loading.value = false;
   }
 };
 
-// 根据周期获取日期范围
-const getDateRangeByPeriod = (periodValue: string): { start: string; end: string } => {
-  const today = new Date();
-  let startDate = new Date();
-  const endDate = new Date(today);
+// 更新图表
+const updateChart = () => {
+  if (!chartContainer.value) return;
   
-  if (periodValue === 'month') {
-    // 本月
-    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-  } else if (periodValue === 'quarter') {
-    // 本季度
-    const quarterMonth = Math.floor(today.getMonth() / 3) * 3;
-    startDate = new Date(today.getFullYear(), quarterMonth, 1);
-  } else if (periodValue === 'year') {
-    // 本年
-    startDate = new Date(today.getFullYear(), 0, 1);
+  // 如果图表实例不存在，则创建
+  if (!chart.value) {
+    chart.value = echarts.init(chartContainer.value);
   }
-  
-  return {
-    start: startDate.toISOString().substr(0, 10),
-    end: endDate.toISOString().substr(0, 10)
-  };
-};
-
-// 渲染图表
-const renderChart = (): void => {
-  if (!chartRef.value) return;
-  
-  // 如果图表已存在，销毁它
-  if (chart.value) {
-    chart.value.destroy();
-  }
-  
-  const ctx = chartRef.value.getContext('2d');
-  if (!ctx) return;
   
   // 准备图表数据
-  const labels = chartData.value.map(item => item.category);
-  const data = chartData.value.map(item => item.amount);
+  const chartData = categories.value.map((item, index) => ({
+    name: item.category_name,
+    value: item.total,
+    itemStyle: {
+      color: item.category_color || getColorByIndex(index)
+    }
+  }));
   
-  // 颜色设置
-  const backgroundColors = [
-    'rgba(54, 162, 235, 0.8)',
-    'rgba(255, 99, 132, 0.8)',
-    'rgba(255, 206, 86, 0.8)',
-    'rgba(75, 192, 192, 0.8)',
-    'rgba(153, 102, 255, 0.8)',
-    'rgba(255, 159, 64, 0.8)',
-    'rgba(199, 199, 199, 0.8)',
-  ];
-  
-  // 创建图表
-  chart.value = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: backgroundColors.slice(0, data.length),
-        borderWidth: 1
-      }]
+  // 设置图表选项
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: {
-            boxWidth: 15,
-            padding: 10,
-            font: {
-              size: 12
-            }
+    series: [
+      {
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '14',
+            fontWeight: 'bold'
           }
         },
-        tooltip: {
-          callbacks: {
-            label: (tooltipItem: any) => {
-              const value = tooltipItem.raw;
-              const totalValue = data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / totalValue) * 100).toFixed(1);
-              return `${tooltipItem.label}: ¥${value.toLocaleString()} (${percentage}%)`;
-            }
-          }
-        }
+        labelLine: {
+          show: false
+        },
+        data: chartData
       }
-    }
-  });
+    ]
+  };
+  
+  // 应用选项
+  chart.value.setOption(option);
 };
 
-// 监听图表容器大小变化
-const resizeChart = (): void => {
+// 监听窗口大小变化，调整图表大小
+const handleResize = () => {
   if (chart.value) {
     chart.value.resize();
   }
 };
 
-// 组件挂载时获取数据
-onMounted(() => {
-  fetchData();
-  window.addEventListener('resize', resizeChart);
+// 监听周期变化
+watch(period, () => {
+  loadCategoryStats();
 });
 
-// 组件卸载时移除事件监听
-const onUnmounted = (): void => {
-  window.removeEventListener('resize', resizeChart);
+onMounted(() => {
+  loadCategoryStats();
+  window.addEventListener('resize', handleResize);
+});
+
+// 组件卸载时清理
+const onBeforeUnmount = () => {
+  window.removeEventListener('resize', handleResize);
   if (chart.value) {
-    chart.value.destroy();
+    chart.value.dispose();
+    chart.value = null;
   }
 };
 </script>

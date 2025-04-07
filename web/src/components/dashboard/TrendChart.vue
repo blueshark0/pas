@@ -1,248 +1,357 @@
-<!-- 收支趋势图表组件 -->
 <template>
-  <div class="trend-chart bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-lg font-bold text-gray-800 mb-4">收支趋势分析</h3>
-    
-    <div v-if="loading" class="flex justify-center items-center py-10">
-      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
-    </div>
-    
-    <div v-else-if="noData" class="flex justify-center items-center py-10 text-gray-500">
-      暂无数据
-    </div>
-    
-    <div v-else class="relative" style="height: 250px;">
-      <canvas ref="chartRef"></canvas>
-    </div>
-    
-    <div class="mt-4 flex justify-between text-sm">
-      <div class="text-gray-500">
-        <span>统计周期: </span>
-        <select v-model="period" @change="fetchData" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-md px-2 py-1">
-          <option value="week">近一周</option>
-          <option value="month">近一月</option>
-          <option value="quarter">近一季</option>
-          <option value="year">近一年</option>
+  <div class="bg-white p-6 rounded-lg shadow-md h-full">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-semibold text-gray-800">收支趋势</h2>
+      <div class="flex space-x-2">
+        <select 
+          v-model="period" 
+          class="text-sm border rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="month">本月</option>
+          <option value="year">今年</option>
         </select>
+        <select 
+          v-model="groupBy" 
+          class="text-sm border rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="day">按日</option>
+          <option value="month">按月</option>
+        </select>
+      </div>
+    </div>
+    
+    <div v-if="loading" class="py-10 text-center text-gray-500">
+      <p>加载中...</p>
+    </div>
+    
+    <div v-else-if="incomeData.length === 0 && expenseData.length === 0" class="py-10 text-center text-gray-500">
+      <p>暂无数据</p>
+    </div>
+    
+    <div v-else>
+      <!-- 趋势图 -->
+      <div class="w-full h-64" ref="chartContainer"></div>
+      
+      <!-- 统计总额 -->
+      <div class="flex justify-between mt-4 px-6 py-3 bg-gray-50 rounded-lg">
+        <div>
+          <p class="text-sm text-gray-500">总收入</p>
+          <p class="text-lg font-semibold text-green-600">¥{{ formatNumber(totalIncome) }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">总支出</p>
+          <p class="text-lg font-semibold text-red-600">¥{{ formatNumber(totalExpense) }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">结余</p>
+          <p :class="['text-lg font-semibold', balance >= 0 ? 'text-blue-600' : 'text-red-600']">
+            ¥{{ formatNumber(balance) }}
+          </p>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import axios from 'axios';
-import { Chart, registerables } from 'chart.js';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import { 
+  TitleComponent, 
+  TooltipComponent, 
+  LegendComponent, 
+  GridComponent, 
+  DataZoomComponent 
+} from 'echarts/components';
+import { UniversalTransition } from 'echarts/features';
+import { CanvasRenderer } from 'echarts/renderers';
 
-// 注册 Chart.js 组件
-Chart.register(...registerables);
+// 注册 ECharts 组件
+echarts.use([
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  DataZoomComponent,
+  UniversalTransition,
+  CanvasRenderer
+]);
 
 interface TrendData {
-  date: string;
-  income: number;
-  expense: number;
+  date_group: string;
+  total: number;
 }
 
-// 状态
+const chartContainer = ref<HTMLElement | null>(null);
+const chart = ref<echarts.ECharts | null>(null);
 const loading = ref<boolean>(false);
-const chartRef = ref<HTMLCanvasElement | null>(null);
-const chart = ref<Chart | null>(null);
 const period = ref<string>('month');
-const trendData = ref<TrendData[]>([]);
-const noData = ref<boolean>(false);
+const groupBy = ref<string>('day');
+const incomeData = ref<TrendData[]>([]);
+const expenseData = ref<TrendData[]>([]);
 
-// 获取图表数据
-const fetchData = async (): Promise<void> => {
+// 计算总收入、总支出和结余
+const totalIncome = computed(() => 
+  incomeData.value.reduce((sum, item) => sum + item.total, 0)
+);
+
+const totalExpense = computed(() => 
+  expenseData.value.reduce((sum, item) => sum + item.total, 0)
+);
+
+const balance = computed(() => 
+  totalIncome.value - totalExpense.value
+);
+
+// 格式化数字
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// 加载趋势数据
+const loadTrendData = async () => {
   loading.value = true;
-  noData.value = false;
   
   try {
-    // 计算日期范围
-    const dates = getDateRangeByPeriod(period.value);
+    // 根据选择的周期计算起止日期
+    let startDate, endDate;
+    const now = new Date();
     
-    const response = await axios.get('/api/income-expense/trend-statistics', {
+    if (period.value === 'month') {
+      // 本月
+      startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else {
+      // 今年
+      startDate = `${now.getFullYear()}-01-01`;
+      endDate = `${now.getFullYear()}-12-31`;
+    }
+    
+    // 加载收入趋势
+    const incomeResponse = await axios.get('/api/income-expense/trend-stats', {
       params: {
-        start_date: dates.start,
-        end_date: dates.end,
-        interval: getIntervalByPeriod(period.value)
+        start_date: startDate,
+        end_date: endDate,
+        group_by: groupBy.value,
+        type: 'income'
       }
     });
+    incomeData.value = incomeResponse.data;
     
-    trendData.value = response.data || [];
-    noData.value = trendData.value.length === 0;
+    // 加载支出趋势
+    const expenseResponse = await axios.get('/api/income-expense/trend-stats', {
+      params: {
+        start_date: startDate,
+        end_date: endDate,
+        group_by: groupBy.value,
+        type: 'expense'
+      }
+    });
+    expenseData.value = expenseResponse.data;
     
-    if (!noData.value) {
-      renderChart();
-    }
+    // 更新图表
+    nextTick(() => {
+      updateChart();
+    });
   } catch (error) {
-    console.error('获取趋势统计数据失败:', error);
-    noData.value = true;
+    console.error('加载趋势数据失败:', error);
   } finally {
     loading.value = false;
   }
 };
 
-// 根据周期获取日期范围
-const getDateRangeByPeriod = (periodValue: string): { start: string; end: string } => {
-  const today = new Date();
-  let startDate = new Date();
+// 更新图表
+const updateChart = () => {
+  if (!chartContainer.value) return;
   
-  if (periodValue === 'week') {
-    // 近一周
-    startDate = new Date(today);
-    startDate.setDate(today.getDate() - 7);
-  } else if (periodValue === 'month') {
-    // 近一月
-    startDate = new Date(today);
-    startDate.setMonth(today.getMonth() - 1);
-  } else if (periodValue === 'quarter') {
-    // 近一季度
-    startDate = new Date(today);
-    startDate.setMonth(today.getMonth() - 3);
-  } else if (periodValue === 'year') {
-    // 近一年
-    startDate = new Date(today);
-    startDate.setFullYear(today.getFullYear() - 1);
+  // 如果图表实例不存在，则创建
+  if (!chart.value) {
+    chart.value = echarts.init(chartContainer.value);
   }
   
-  return {
-    start: startDate.toISOString().substr(0, 10),
-    end: today.toISOString().substr(0, 10)
-  };
-};
-
-// 根据周期获取日期间隔类型
-const getIntervalByPeriod = (periodValue: string): string => {
-  if (periodValue === 'week') {
-    return 'day';
-  } else if (periodValue === 'month') {
-    return 'day';
-  } else if (periodValue === 'quarter') {
-    return 'week';
-  } else { // year
-    return 'month';
-  }
-};
-
-// 格式化日期标签
-const formatDateLabel = (date: string, interval: string): string => {
-  const dateObj = new Date(date);
+  // 合并日期，确保日期连续
+  const allDates = new Set();
+  incomeData.value.forEach(item => allDates.add(item.date_group));
+  expenseData.value.forEach(item => allDates.add(item.date_group));
   
-  if (interval === 'day') {
-    return `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
-  } else if (interval === 'week') {
-    return `${dateObj.getMonth() + 1}月第${Math.ceil(dateObj.getDate() / 7)}周`;
-  } else if (interval === 'month') {
-    return `${dateObj.getMonth() + 1}月`;
-  }
+  const sortedDates = Array.from(allDates).sort();
   
-  return date;
-};
-
-// 渲染图表
-const renderChart = (): void => {
-  if (!chartRef.value) return;
+  // 准备收入数据
+  const incomeMap = new Map();
+  incomeData.value.forEach(item => {
+    incomeMap.set(item.date_group, item.total);
+  });
   
-  // 如果图表已存在，销毁它
-  if (chart.value) {
-    chart.value.destroy();
-  }
+  const incomeValues = sortedDates.map(date => incomeMap.get(date) || 0);
   
-  const ctx = chartRef.value.getContext('2d');
-  if (!ctx) return;
+  // 准备支出数据
+  const expenseMap = new Map();
+  expenseData.value.forEach(item => {
+    expenseMap.set(item.date_group, item.total);
+  });
   
-  // 准备图表数据
-  const interval = getIntervalByPeriod(period.value);
-  const labels = trendData.value.map(item => formatDateLabel(item.date, interval));
-  const incomeData = trendData.value.map(item => item.income);
-  const expenseData = trendData.value.map(item => item.expense);
+  const expenseValues = sortedDates.map(date => expenseMap.get(date) || 0);
   
-  // 创建图表
-  chart.value = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: '收入',
-          data: incomeData,
-          borderColor: 'rgba(54, 162, 235, 1)',
-          backgroundColor: 'rgba(54, 162, 235, 0.1)',
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true
-        },
-        {
-          label: '支出',
-          data: expenseData,
-          borderColor: 'rgba(255, 99, 132, 1)',
-          backgroundColor: 'rgba(255, 99, 132, 0.1)',
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true
-        }
-      ]
+  // 设置图表选项
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      formatter: function (params: any) {
+        let result = params[0].axisValue + '<br/>';
+        params.forEach((item: any) => {
+          const color = item.seriesName === '收入' ? '#10B981' : '#EF4444';
+          const value = item.value.toLocaleString('zh-CN', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+          });
+          result += `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;background-color:${color};"></span>`;
+          result += `${item.seriesName}: ¥${value}<br/>`;
+        });
+        return result;
+      }
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          grid: {
-            display: false
-          }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: (value) => {
-              return '¥' + value;
-            }
-          }
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const label = context.dataset.label || '';
-              const value = context.parsed.y;
-              return `${label}: ¥${value.toLocaleString()}`;
-            }
+    legend: {
+      data: ['收入', '支出'],
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '12%',
+      top: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: sortedDates,
+      axisLabel: {
+        formatter: (value: string) => {
+          if (groupBy.value === 'day') {
+            // 如果是按日分组，显示日期中的日
+            return value.split('-')[2];
+          } else {
+            // 如果是按月分组，显示月份
+            const parts = value.split('-');
+            return `${parts[1]}月`;
           }
         }
       }
-    }
-  });
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: (value: number) => {
+          if (value >= 1000) {
+            return (value / 1000) + 'k';
+          }
+          return value;
+        }
+      }
+    },
+    series: [
+      {
+        name: '收入',
+        type: 'line',
+        data: incomeValues,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: {
+          color: '#10B981' // 绿色
+        },
+        lineStyle: {
+          width: 3
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+              { offset: 1, color: 'rgba(16, 185, 129, 0.1)' }
+            ]
+          }
+        }
+      },
+      {
+        name: '支出',
+        type: 'line',
+        data: expenseValues,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: {
+          color: '#EF4444' // 红色
+        },
+        lineStyle: {
+          width: 3
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(239, 68, 68, 0.3)' },
+              { offset: 1, color: 'rgba(239, 68, 68, 0.1)' }
+            ]
+          }
+        }
+      }
+    ]
+  };
+  
+  // 如果数据点过多，添加缩放功能
+  if (sortedDates.length > 10) {
+    option.dataZoom = [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        start: 0,
+        end: 100
+      }
+    ];
+  }
+  
+  // 应用选项
+  chart.value.setOption(option);
 };
 
-// 监听图表容器大小变化
-const resizeChart = (): void => {
+// 监听窗口大小变化，调整图表大小
+const handleResize = () => {
   if (chart.value) {
     chart.value.resize();
   }
 };
 
-// 组件挂载时获取数据
+// 监听周期和分组方式变化
+watch([period, groupBy], () => {
+  loadTrendData();
+});
+
 onMounted(() => {
-  fetchData();
-  window.addEventListener('resize', resizeChart);
+  loadTrendData();
+  window.addEventListener('resize', handleResize);
 });
 
-// 组件卸载时移除事件监听
-onUnmounted(() => {
-  window.removeEventListener('resize', resizeChart);
+// 组件卸载时清理
+const onBeforeUnmount = () => {
+  window.removeEventListener('resize', handleResize);
   if (chart.value) {
-    chart.value.destroy();
+    chart.value.dispose();
+    chart.value = null;
   }
-});
+};
 </script>
-
-<style scoped>
-/* 适配移动设备 */
-@media (max-width: 640px) {
-  .trend-chart {
-    padding: 1rem;
-  }
-}
-</style>
