@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人资金规划</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@1.0.6/dist/tailwind.min.css">
+  <style>
+    /* 底部导航栏样式 */
+    .bottom-tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background-color: white;
+      border-top: 1px solid #eaeaea;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .tab-icon {
+      font-size: 20px;
+    }
+    .tab-label {
+      font-size: 12px;
+    }
+    .active .tab-icon {
+      color: #4CAF50;
+    }
+    .active .tab-label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="container mx-auto mt-4">
+    <div class="bg-white rounded-lg shadow-md p-4">
+      <div class="flex items-center mb-4">
+        <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+          <i class="fas fa-user-circle fa-3x text-blue-500"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-semibold">用户名</h2>
+          <p class="text-gray-600">用户邮箱</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-4 gap-4">
+        <div class="flex flex-col items-center">
+          <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mb-1">
+            <i class="fas fa-wallet text-yellow-600"></i>
+          </div>
+          <span class="text-xs text-gray-600">预算目标</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mb-1">
+            <i class="fas fa-tag text-purple-600"></i>
+          </div>
+          <span class="text-xs text-gray-600">收支分类</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-1">
+            <i class="fas fa-file-export text-green-600"></i>
+          </div>
+          <span class="text-xs text-gray-600">数据导出</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-1">
+            <i class="fas fa-bell text-red-600"></i>
+          </div>
+          <span class="text-xs text-gray-600">提醒设置</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 设置列表 -->
+    <div class="card mb-6">
+      <div class="flex justify-between items-center py-3 px-1">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+            <i class="fas fa-shield-alt text-gray-600"></i>
+          </div>
+          <span>隐私与安全</span>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400"></i>
+      </div>
+      
+      <div class="border-t border-gray-100"></div>
+      
+      <div class="flex justify-between items-center py-3 px-1">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+            <i class="fas fa-cog text-gray-600"></i>
+          </div>
+          <span>通用设置</span>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400"></i>
+      </div>
+      
+      <div class="border-t border-gray-100"></div>
+      
+      <div class="flex justify-between items-center py-3 px-1">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+            <i class="fas fa-headset text-gray-600"></i>
+          </div>
+          <span>帮助与反馈</span>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400"></i>
+      </div>
+      
+      <div class="border-t border-gray-100"></div>
+      
+      <div class="flex justify-between items-center py-3 px-1">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+            <i class="fas fa-info-circle text-gray-600"></i>
+          </div>
+          <span>关于我们</span>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400"></i>
+      </div>
+    </div>
+    
+    <!-- 版本信息 -->
+    <div class="text-center text-xs text-gray-400 mt-8 mb-4">
+      <p>个人资金规划 v1.0.0</p>
+      <p class="mt-1">©2023 All Rights Reserved</p>
+    </div>
+  </div>
+
+  <!-- 底部导航栏 -->
+  <div class="bottom-tab-bar">
+    <div class="tab-item">
+      <i class="fas fa-home tab-icon"></i>
+      <span class="tab-label">首页</span>
+    </div>
+    <div class="tab-item">
+      <i class="fas fa-list tab-icon"></i>
+      <span class="tab-label">记账</span>
+    </div>
+    <div class="tab-item">
+      <i class="fas fa-money-check-alt tab-icon"></i>
+      <span class="tab-label">贷款</span>
+    </div>
+    <div class="tab-item">
+      <i class="fas fa-chart-line tab-icon"></i>
+      <span class="tab-label">趋势</span>
+    </div>
+    <div class="tab-item active">
+      <i class="fas fa-user tab-icon"></i>
+      <span class="tab-label">我的</span>
+    </div>
+  </div>
+</body>
+</html>

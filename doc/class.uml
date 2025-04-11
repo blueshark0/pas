@@ -1,0 +1,123 @@
+@startuml
+
+' 用户实体
+class User {
+  +id: String
+  +name: String
+  +email: String
+  +password: String
+  +avatar: String
+  +createdAt: Date
+}
+
+' 账户实体
+class Account {
+  +id: String
+  +userId: String
+  +name: String
+  +type: String
+  +balance: Decimal
+  +isAsset: Boolean
+}
+
+' 交易分类
+class Category {
+  +id: String
+  +name: String
+  +type: String
+  +icon: String
+  +color: String
+}
+
+' 交易记录
+class Transaction {
+  +id: String
+  +userId: String
+  +accountId: String
+  +categoryId: String
+  +amount: Decimal
+  +type: String
+  +date: Date
+  +time: Time
+  +description: String
+  +memo: String
+}
+
+' 贷款
+class Loan {
+  +id: String
+  +userId: String
+  +name: String
+  +lender: String
+  +amount: Decimal
+  +remainingPrincipal: Decimal
+  +interestRate: Decimal
+  +term: Integer
+  +startDate: Date
+  +endDate: Date
+  +monthlyPayment: Decimal
+  +paymentDay: Integer
+  +remainingPayments: Integer
+  +status: String
+}
+
+' 贷款还款记录
+class LoanPayment {
+  +id: String
+  +loanId: String
+  +paymentDate: Date
+  +amount: Decimal
+  +principal: Decimal
+  +interest: Decimal
+  +status: String
+}
+
+' 财务目标
+class FinancialGoal {
+  +id: String
+  +userId: String
+  +name: String
+  +targetAmount: Decimal
+  +currentAmount: Decimal
+  +deadline: Date
+  +status: String
+}
+
+' 预算
+class Budget {
+  +id: String
+  +userId: String
+  +categoryId: String
+  +amount: Decimal
+  +period: String
+  +startDate: Date
+  +endDate: Date
+}
+
+' 财务健康度
+class FinancialHealth {
+  +id: String
+  +userId: String
+  +score: Integer
+  +debtToIncomeRatio: Decimal
+  +savingsRate: Decimal
+  +emergencyFundMonths: Decimal
+  +date: Date
+}
+
+' 定义关系
+User "1" -- "many" Account : has >
+User "1" -- "many" Transaction : records >
+User "1" -- "many" Loan : has >
+User "1" -- "many" FinancialGoal : sets >
+User "1" -- "many" Budget : plans >
+User "1" -- "many" FinancialHealth : evaluated by >
+
+Account "1" -- "many" Transaction : contains >
+
+Category "1" -- "many" Transaction : categorizes >
+Category "1" -- "many" Budget : used in >
+
+Loan "1" -- "many" LoanPayment : has >
+
+@enduml
