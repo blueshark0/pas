@@ -1,0 +1,192 @@
+@startuml 个人资金规划APP实体类图
+
+' 用户实体
+class User {
+    +userId: String
+    +userName: String
+    +password: String
+    +avatar: String
+    +email: String
+    +phone: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 账户实体 - 用于储存不同类型的账户信息(银行卡、现金、支付宝等)
+class Account {
+    +accountId: String
+    +userId: String
+    +accountName: String
+    +accountType: String
+    +balance: Decimal
+    +iconType: String
+    +color: String
+    +isDefault: Boolean
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 交易类别实体 - 用于对交易进行分类
+class Category {
+    +categoryId: String
+    +categoryName: String
+    +parentId: String
+    +type: String  ' 收入/支出/转账
+    +iconType: String
+    +color: String
+    +isDefault: Boolean
+    +sortOrder: Integer
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 交易记录实体 - 记录所有的收入/支出/转账
+class Transaction {
+    +transactionId: String
+    +userId: String
+    +amount: Decimal
+    +type: String  ' 收入/支出/转账
+    +categoryId: String
+    +accountId: String
+    +targetAccountId: String  ' 仅转账类型使用
+    +description: String
+    +transactionDate: DateTime
+    +location: String
+    +tags: String
+    +imageUrls: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 预算实体 - 用于设置和跟踪预算
+class Budget {
+    +budgetId: String
+    +userId: String
+    +categoryId: String
+    +amount: Decimal
+    +period: String  ' 每日/每周/每月/每年
+    +startDate: Date
+    +endDate: Date
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 资产实体 - 用于管理不同类型的资产
+class Asset {
+    +assetId: String
+    +userId: String
+    +assetName: String
+    +assetType: String  ' 现金/股票/基金/房产等
+    +initialAmount: Decimal
+    +currentAmount: Decimal
+    +purchaseDate: Date
+    +profit: Decimal
+    +profitRate: Decimal
+    +iconType: String
+    +color: String
+    +description: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 负债(贷款)实体 - 用于管理各种贷款
+class Loan {
+    +loanId: String
+    +userId: String
+    +loanName: String
+    +loanType: String  ' 房贷/车贷/信用贷等
+    +totalAmount: Decimal
+    +remainingAmount: Decimal
+    +interestRate: Decimal
+    +startDate: Date
+    +endDate: Date
+    +totalPeriods: Integer
+    +currentPeriod: Integer
+    +paymentDay: Integer
+    +monthlyPayment: Decimal
+    +iconType: String
+    +color: String
+    +description: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 提醒实体 - 用于设置账单、贷款等提醒
+class Reminder {
+    +reminderId: String
+    +userId: String
+    +title: String
+    +targetId: String  ' 关联的实体ID(如贷款ID)
+    +targetType: String  ' 关联的实体类型
+    +reminderDate: DateTime
+    +reminderType: String
+    +status: String  ' 待提醒/已提醒/已忽略
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 标签实体 - 可用于交易记录的标签
+class Tag {
+    +tagId: String
+    +userId: String
+    +tagName: String
+    +color: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 定期交易实体 - 用于设置重复性交易
+class RecurringTransaction {
+    +recurringId: String
+    +userId: String
+    +amount: Decimal
+    +type: String
+    +categoryId: String
+    +accountId: String
+    +description: String
+    +frequency: String  ' 每日/每周/每月/每年
+    +startDate: Date
+    +endDate: Date
+    +nextDate: Date
+    +status: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 财务目标实体 - 用于设置和跟踪财务目标
+class FinancialGoal {
+    +goalId: String
+    +userId: String
+    +goalName: String
+    +targetAmount: Decimal
+    +currentAmount: Decimal
+    +startDate: Date
+    +targetDate: Date
+    +status: String  ' 进行中/已完成/已放弃
+    +iconType: String
+    +color: String
+    +description: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+}
+
+' 关系定义
+User "1" -- "多" Account : 拥有
+User "1" -- "多" Transaction : 记录
+User "1" -- "多" Budget : 设置
+User "1" -- "多" Asset : 拥有
+User "1" -- "多" Loan : 拥有
+User "1" -- "多" Reminder : 设置
+User "1" -- "多" Tag : 创建
+User "1" -- "多" RecurringTransaction : 设置
+User "1" -- "多" FinancialGoal : 设置
+
+Category "1" -- "多" Transaction : 分类
+Category "1" -- "多" Budget : 限制
+
+Account "1" -- "多" Transaction : 源账户
+Account "1" -- "多" Transaction : 目标账户
+
+Transaction "多" -- "多" Tag : 标记
+
+@enduml
