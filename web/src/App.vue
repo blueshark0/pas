@@ -1,85 +1,125 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { Wallet, TrendCharts, Document } from '@element-plus/icons-vue';
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <el-config-provider namespace="ep">
+    <div class="app-container">
+      <router-view v-slot="{ Component }">
+        <keep-alive>
+          <component :is="Component" />
+        </keep-alive>
+      </router-view>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+      <!-- 底部导航栏 -->
+      <div class="nav-bar">
+        <router-link to="/" class="nav-item" active-class="active">
+          <el-icon><Wallet /></el-icon>
+          <span>首页</span>
+        </router-link>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+        <router-link to="/transaction/list" class="nav-item" active-class="active">
+          <el-icon><TrendCharts /></el-icon>
+          <span>交易</span>
+        </router-link>
+
+        <router-link to="/history" class="nav-item" active-class="active">
+          <el-icon><Document /></el-icon>
+          <span>历史</span>
+        </router-link>
+      </div>
     </div>
-  </header>
-
-  <RouterView />
+  </el-config-provider>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+<style>
+/* 全局样式 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c3e50;
+  background-color: #f5f7fa;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+#app {
+  height: 100%;
 }
 
-nav {
-  width: 100%;
+.app-container {
+  min-height: 100vh;
+  padding-bottom: 70px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* 底部导航栏 */
+.nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 60px;
+  background: #fff;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #909399;
   font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
+  flex: 1;
+  height: 100%;
 }
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
+.nav-item .el-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
 }
 
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
+.nav-item.active {
+  color: #409eff;
 }
 
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+/* 响应式样式 */
+@media (min-width: 768px) {
+  .app-container {
+    padding-bottom: 0;
   }
 
-  .logo {
-    margin: 0 2rem 0 0;
+  .nav-bar {
+    position: fixed;
+    top: 0;
+    bottom: auto;
+    height: 60px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
+  .app-container {
+    padding-top: 70px;
   }
 
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
+  .nav-item {
+    flex-direction: row;
+    font-size: 14px;
+  }
 
-    padding: 1rem 0;
-    margin-top: 1rem;
+  .nav-item .el-icon {
+    margin-bottom: 0;
+    margin-right: 8px;
   }
 }
 </style>
