@@ -17,7 +17,7 @@ class BalanceHistory extends Model
     protected $pk = 'id';
     
     // 自动写入时间戳（创建时间）
-    protected $autoWriteTimestamp = 'create_time';
+    protected $autoWriteTimestamp = true;
     protected $createTime = 'created_at';
     protected $updateTime = false; // 不需要更新时间
     

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElRate } from 'element-plus';
 import { Plus, ArrowRight } from '@element-plus/icons-vue';
 import { useAccountStore } from '@/stores/account';
 import { useTransactionStore } from '@/stores/transaction';
@@ -73,7 +73,7 @@ const handleInitBalance = async () => {
     ElMessage.warning('初始余额不能为负数');
     return;
   }
-  
+
   submitLoading.value = true;
   try {
     const success = await accountStore.initBalance(initBalanceForm.amount);
@@ -96,7 +96,7 @@ const handleEditBalance = async () => {
     ElMessage.warning('余额不能为负数');
     return;
   }
-  
+
   submitLoading.value = true;
   try {
     const success = await accountStore.editBalance(editBalanceForm.amount);
@@ -132,8 +132,8 @@ const goToHistory = () => {
 <template>
   <div class="home-view">
     <el-card class="balance-card" shadow="never">
-      <balance-display 
-        :amount="accountStore.currentBalance" 
+      <balance-display
+        :amount="accountStore.currentBalance"
         :loading="accountStore.loading"
       >
         <div class="balance-actions" v-if="accountStore.currentBalance === null">
@@ -157,14 +157,14 @@ const goToHistory = () => {
         <el-empty description="暂无待执行交易" />
       </div>
       <template v-else>
-        <transaction-item 
-          v-for="transaction in upcomingTransactions" 
-          :key="transaction.id" 
+        <transaction-item
+          v-for="transaction in upcomingTransactions"
+          :key="transaction.id"
           :transaction="transaction"
           @click="goToEditTransaction(transaction)"
         />
       </template>
-      
+
       <div class="view-all-link">
         <el-button text @click="goToTransactionList">
           查看全部交易 <el-icon><ArrowRight /></el-icon>
@@ -181,13 +181,13 @@ const goToHistory = () => {
         <el-empty description="暂无余额变更记录" />
       </div>
       <template v-else>
-        <history-item 
-          v-for="history in recentHistory" 
-          :key="history.id" 
+        <history-item
+          v-for="history in recentHistory"
+          :key="history.id"
           :history="history"
         />
       </template>
-      
+
       <div class="view-all-link">
         <el-button text @click="goToHistory">
           查看全部记录 <el-icon><ArrowRight /></el-icon>
@@ -205,9 +205,9 @@ const goToHistory = () => {
     >
       <el-form :model="initBalanceForm" label-position="top">
         <el-form-item label="初始余额">
-          <el-input-number 
-            v-model="initBalanceForm.amount" 
-            :min="0" 
+          <el-input-number
+            v-model="initBalanceForm.amount"
+            :min="0"
             :precision="2"
             :step="1000"
             style="width: 100%"
@@ -238,9 +238,9 @@ const goToHistory = () => {
           </div>
         </el-form-item>
         <el-form-item label="新余额">
-          <el-input-number 
-            v-model="editBalanceForm.amount" 
-            :min="0" 
+          <el-input-number
+            v-model="editBalanceForm.amount"
+            :min="0"
             :precision="2"
             :step="100"
             style="width: 100%"
@@ -317,11 +317,11 @@ const goToHistory = () => {
   .home-view {
     padding: 16px;
   }
-  
+
   .section-header h2 {
     font-size: 16px;
   }
-  
+
   .balance-dialog {
     width: 90%;
   }

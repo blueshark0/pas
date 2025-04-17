@@ -71,7 +71,7 @@ class TransactionService
         
         try {
             $transaction = new PresetTransaction();
-            $transaction->type = $data['type'];
+            $transaction->transaction_type = $data['type'];
             $transaction->amount = $data['amount'];
             $transaction->execution_date = $data['execution_date'];
             $transaction->description = $data['description'] ?? '';
@@ -82,7 +82,12 @@ class TransactionService
                 $transaction->is_recurring = 1;
                 $transaction->recurrence_type = $data['recurrence_type'] ?? 0;
                 $transaction->recurrence_interval = $data['recurrence_interval'] ?? 1;
-                $transaction->recurrence_end_date = $data['recurrence_end_date'] ?? null;
+                
+                // 确保空字符串被转换为null
+                $recurrenceEndDate = isset($data['recurrence_end_date']) && $data['recurrence_end_date'] !== '' 
+                    ? $data['recurrence_end_date'] 
+                    : null;
+                $transaction->recurrence_end_date = $recurrenceEndDate;
             } else {
                 $transaction->is_recurring = 0;
             }
@@ -245,7 +250,7 @@ class TransactionService
         try {
             foreach ($pendingTransactions as $transaction) {
                 // 根据交易类型计算余额变更
-                $changeAmount = $transaction['type'] == PresetTransaction::TYPE_INCOME
+                $changeAmount = $transaction['transaction_type'] == PresetTransaction::TYPE_INCOME
                     ? $transaction['amount']
                     : -$transaction['amount'];
                 
@@ -256,7 +261,7 @@ class TransactionService
                 PresetTransaction::updateStatus($transaction['id'], PresetTransaction::STATUS_EXECUTED);
                 
                 // 创建余额变更历史
-                $changeType = $transaction['type'] == PresetTransaction::TYPE_INCOME
+                $changeType = $transaction['transaction_type'] == PresetTransaction::TYPE_INCOME
                     ? BalanceHistory::CHANGE_TYPE_INCOME
                     : BalanceHistory::CHANGE_TYPE_EXPENSE;
                 
@@ -269,7 +274,11 @@ class TransactionService
                 
                 // 如果是周期性交易，创建下一期交易
                 if ($transaction['is_recurring']) {
-                    PresetTransaction::processRecurringTransaction($transaction['id']);
+                    // 重新获取完整的交易对象，确保所有字段都被加载
+                    $fullTransaction = PresetTransaction::find($transaction['id']);
+                    if ($fullTransaction) {
+                        PresetTransaction::processRecurringTransaction($fullTransaction->id);
+                    }
                 }
                 
                 $executedTransactions[] = $transaction;

@@ -5,33 +5,31 @@ import { Wallet, TrendCharts, Document } from '@element-plus/icons-vue';
 </script>
 
 <template>
-  <el-config-provider namespace="ep">
-    <div class="app-container">
-      <router-view v-slot="{ Component }">
-        <keep-alive>
-          <component :is="Component" />
-        </keep-alive>
-      </router-view>
+  <div class="app-container">
+    <router-view v-slot="{ Component }">
+      <keep-alive>
+        <component :is="Component" />
+      </keep-alive>
+    </router-view>
 
-      <!-- 底部导航栏 -->
-      <div class="nav-bar">
-        <router-link to="/" class="nav-item" active-class="active">
-          <el-icon><Wallet /></el-icon>
-          <span>首页</span>
-        </router-link>
+    <!-- 底部导航栏 -->
+    <div class="nav-bar">
+      <router-link to="/" class="nav-item" active-class="active">
+        <el-icon><Wallet /></el-icon>
+        <span>首页</span>
+      </router-link>
 
-        <router-link to="/transaction/list" class="nav-item" active-class="active">
-          <el-icon><TrendCharts /></el-icon>
-          <span>交易</span>
-        </router-link>
+      <router-link to="/transaction/list" class="nav-item" active-class="active">
+        <el-icon><TrendCharts /></el-icon>
+        <span>交易</span>
+      </router-link>
 
-        <router-link to="/history" class="nav-item" active-class="active">
-          <el-icon><Document /></el-icon>
-          <span>历史</span>
-        </router-link>
-      </div>
+      <router-link to="/history" class="nav-item" active-class="active">
+        <el-icon><Document /></el-icon>
+        <span>历史</span>
+      </router-link>
     </div>
-  </el-config-provider>
+  </div>
 </template>
 
 <style>

@@ -22,7 +22,7 @@ class PresetTransaction extends Model
     // 设置字段信息
     protected $schema = [
         'id'                  => 'int',
-        'type'                => 'tinyint',
+        'transaction_type'    => 'tinyint',  // 改为transaction_type避免与ThinkORM的type冲突
         'amount'              => 'decimal:2',
         'execution_date'      => 'date',
         'description'         => 'string',
@@ -120,7 +120,7 @@ class PresetTransaction extends Model
         
         // 创建新的周期交易
         $newTransaction = new self();
-        $newTransaction->type = $transaction->type;
+        $newTransaction->transaction_type = $transaction->transaction_type;
         $newTransaction->amount = $transaction->amount;
         $newTransaction->execution_date = $nextDate;
         $newTransaction->description = $transaction->description;
